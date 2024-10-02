@@ -1,5 +1,6 @@
 import streamlit as st
 import yt_dlp as youtube_dl
+import os
 
 # Título do app
 st.title("Download de Vídeos do YouTube")
@@ -10,6 +11,7 @@ video_url = st.text_input("Insira a URL do vídeo do YouTube:")
 # Inicializa as opções de qualidade
 quality_options = []
 formats = []
+downloaded_file = None
 
 # Se o vídeo foi inserido, extrair as opções de qualidade disponíveis
 if video_url:
@@ -43,8 +45,10 @@ download_audio = st.checkbox("Baixar apenas o áudio (MP3)")
 # Botão para iniciar o download
 if st.button("Baixar"):
     if video_url:
+        # Caminho para salvar o vídeo
+        output_path = 'downloads/%(title)s.%(ext)s'
         ydl_opts = {
-            'outtmpl': 'downloads/%(title)s.%(ext)s',
+            'outtmpl': output_path,
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
             },
@@ -67,9 +71,21 @@ if st.button("Baixar"):
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([video_url])
+                info = ydl.extract_info(video_url)
+                file_name = ydl.prepare_filename(info)  # Obtém o nome do arquivo baixado
+                downloaded_file = file_name  # Define o caminho do arquivo baixado para exibição
             st.success("Download concluído com sucesso!")
         except Exception as e:
             st.error(f"Erro ao baixar o vídeo: {e}")
     else:
         st.warning("Por favor, insira uma URL válida.")
+
+# Verifica se o arquivo foi baixado e cria o botão de download
+if downloaded_file and os.path.exists(downloaded_file):
+    with open(downloaded_file, "rb") as file:
+        st.download_button(
+            label="Clique para baixar o arquivo",
+            data=file,
+            file_name=os.path.basename(downloaded_file),
+            mime="application/octet-stream"
+        )
