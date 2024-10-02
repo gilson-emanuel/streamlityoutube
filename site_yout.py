@@ -7,7 +7,7 @@ st.title("Download de Vídeos do YouTube")
 # Input para o usuário inserir a URL do vídeo
 video_url = st.text_input("Insira a URL do vídeo do YouTube:")
 
-# Opções de qualidade
+# Inicializa as opções de qualidade
 quality_options = []
 formats = []
 
@@ -15,17 +15,21 @@ formats = []
 if video_url:
     try:
         ydl_opts = {
-            'cookiefile': 'cookies.txt',  # Especifica o arquivo de cookies
             'quiet': True,
+            'cookiefile': 'cookies.txt',  # Arquivo de cookies, se necessário
         }
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            # Extrai as informações do vídeo, incluindo os formatos
             info_dict = ydl.extract_info(video_url, download=False)
             formats = info_dict.get('formats', None)
 
             # Preenche a lista de qualidades disponíveis
             for f in formats:
-                quality_options.append(f"{f['format_id']} - {f['format_note']} ({f['ext']})")
-
+                format_id = f['format_id']
+                format_note = f['format_note']
+                ext = f['ext']
+                quality_options.append(f"{format_id} - {format_note} ({ext})")
+    
     except Exception as e:
         st.error(f"Erro ao extrair informações do vídeo: {e}")
 
