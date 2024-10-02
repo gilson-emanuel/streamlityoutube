@@ -25,9 +25,9 @@ if video_url:
 
             # Preenche a lista de qualidades disponíveis
             for f in formats:
-                format_id = f['format_id']
-                format_note = f['format_note']
-                ext = f['ext']
+                format_id = f.get('format_id')
+                format_note = f.get('format_note', 'Unknown quality')  # Usa 'Unknown quality' se 'format_note' não estiver presente
+                ext = f.get('ext', 'Unknown format')  # Usa 'Unknown format' se 'ext' não estiver presente
                 quality_options.append(f"{format_id} - {format_note} ({ext})")
     
     except Exception as e:
