@@ -9,76 +9,65 @@ st.title("Download de Vídeos do YouTube (MP4)")
 # Input para o usuário inserir a URL do vídeo
 video_url = st.text_input("Insira a URL do vídeo do YouTube:")
 
-# Inicializa as opções de qualidade
-quality_options = []
-formats = []
-downloaded_file = None
+# Checkbox para baixar apenas o áudio (MP3)
+download_audio = st.checkbox("Baixar apenas o áudio (MP3)")
 
-# Se o vídeo foi inserido, extrair as opções de qualidade disponíveis
-if video_url:
-    try:
-        ydl_opts = {
-            'quiet': True,
-            'cookiefile': 'cookies.txt',  # Arquivo de cookies, se necessário
-        }
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            # Extrai as informações do vídeo, incluindo os formatos
-            info_dict = ydl.extract_info(video_url, download=False)
-            formats = info_dict.get('formats', None)
+# Seleção de qualidade do vídeo
+quality = st.selectbox(
+    "Escolha a qualidade do vídeo:",
+    ("Melhor Qualidade", "Qualidade Média", "Baixa Qualidade")
+)
 
-            # Preenche a lista de qualidades disponíveis (apenas MP4)
-            for f in formats:
-                ext = f.get('ext', '')
-                resolution = f.get('resolution', 'Unknown resolution')
-                format_id = f.get('format_id')
-                
-                # Filtra apenas formatos em mp4
-                if ext == 'mp4':
-                    quality_options.append(f"{format_id} - {resolution} ({ext})")
-    
-    except Exception as e:
-        st.error(f"Erro ao extrair informações do vídeo: {e}")
-
-# Se houver opções de qualidade disponíveis, mostre para o usuário
-if quality_options:
-    selected_quality = st.selectbox("Escolha a qualidade do vídeo (somente MP4):", quality_options)
+# Função para determinar a qualidade com base na escolha
+def get_quality_format(quality_choice):
+    if quality_choice == "Melhor Qualidade":
+        return "bestvideo+bestaudio/best"  # Melhor qualidade de vídeo e áudio
+    elif quality_choice == "Qualidade Média":
+        return "18"  # Qualidade média, normalmente 360p ou 480p
+    elif quality_choice == "Baixa Qualidade":
+        return "160"  # Baixa qualidade, normalmente 144p
+    return "best"  # Caso padrão, melhor qualidade
 
 # Botão para iniciar o download
 if st.button("Baixar"):
     if video_url:
+        # Caminho para salvar o vídeo
+        output_path = 'downloads/%(title)s.%(ext)s'
         ydl_opts = {
-            'format': 'mp4',  # Garantir que o formato será MP4
+            'outtmpl': output_path,
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
             },
             'cookiefile': 'cookies.txt',  # Arquivo de cookies para contornar a verificação
-            'outtmpl': '%(title)s.%(ext)s',  # Definir o nome do arquivo de saída
         }
 
-        # Se o usuário escolheu um formato específico
-        if selected_quality:
-            format_id = selected_quality.split(" - ")[0]  # Extrair o ID do formato escolhido
-            ydl_opts['format'] = format_id
+        # Se o usuário escolher baixar apenas o áudio
+        if download_audio:
+            ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+        else:
+            # Define a qualidade do vídeo com base na escolha do usuário
+            ydl_opts['format'] = get_quality_format(quality)
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                # Baixar o vídeo para um buffer
-                info = ydl.extract_info(video_url, download=False)
-                buffer = BytesIO()
-                ydl.download([video_url])
-                
-                file_name = ydl.prepare_filename(info)  # Nome do arquivo
+                # Baixar o vídeo e armazenar em um buffer
+                info = ydl.extract_info(video_url)
+                file_name = ydl.prepare_filename(info)  # Nome do arquivo baixado
                 with open(file_name, 'rb') as f:
-                    buffer.write(f.read())
-                    buffer.seek(0)
+                    video_data = f.read()
 
                 # Download automático pelo navegador
-                st.success(f"Download concluído: {file_name}")
+                st.success("Download concluído com sucesso!")
                 st.download_button(
-                    label="Clique para baixar automaticamente",
-                    data=buffer,
+                    label="Baixar Arquivo",
+                    data=video_data,
                     file_name=os.path.basename(file_name),
-                    mime="video/mp4"
+                    mime="video/mp4" if not download_audio else "audio/mp3"
                 )
 
         except Exception as e:
