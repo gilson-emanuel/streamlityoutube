@@ -7,11 +7,31 @@ st.title("Download de Vídeos do YouTube")
 # Input para o usuário inserir a URL do vídeo
 video_url = st.text_input("Insira a URL do vídeo do YouTube:")
 
-# Opções de qualidade de vídeo
-quality_option = st.selectbox(
-    "Escolha a qualidade do vídeo:",
-    ("Melhor Qualidade", "Qualidade Média", "Menor Qualidade")
-)
+# Opções de qualidade
+quality_options = []
+formats = []
+
+# Se o vídeo foi inserido, extrair as opções de qualidade disponíveis
+if video_url:
+    try:
+        ydl_opts = {
+            'cookiefile': 'cookies.txt',  # Especifica o arquivo de cookies
+            'quiet': True,
+        }
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(video_url, download=False)
+            formats = info_dict.get('formats', None)
+
+            # Preenche a lista de qualidades disponíveis
+            for f in formats:
+                quality_options.append(f"{f['format_id']} - {f['format_note']} ({f['ext']})")
+
+    except Exception as e:
+        st.error(f"Erro ao extrair informações do vídeo: {e}")
+
+# Se houver opções de qualidade disponíveis, mostre para o usuário
+if quality_options:
+    selected_quality = st.selectbox("Escolha a qualidade do vídeo:", quality_options)
 
 # Checkbox para baixar apenas o áudio (MP3)
 download_audio = st.checkbox("Baixar apenas o áudio (MP3)")
@@ -19,22 +39,13 @@ download_audio = st.checkbox("Baixar apenas o áudio (MP3)")
 # Botão para iniciar o download
 if st.button("Baixar"):
     if video_url:
-        # Configuração inicial das opções de download
         ydl_opts = {
-            'format': 'best',  # Padrão: melhor qualidade
-            'outtmpl': 'downloads/%(title)s.%(ext)s',  # Onde o arquivo será salvo
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-            }
+            },
+            'cookiefile': 'cookies.txt',  # Arquivo de cookies para contornar a verificação
         }
-
-        # Ajustar a qualidade com base na seleção do usuário
-        if quality_option == "Melhor Qualidade":
-            ydl_opts['format'] = 'best'
-        elif quality_option == "Qualidade Média":
-            ydl_opts['format'] = '18'  # Código para qualidade média (720p)
-        elif quality_option == "Menor Qualidade":
-            ydl_opts['format'] = 'worst'
 
         # Se o usuário escolher baixar apenas o áudio
         if download_audio:
@@ -44,13 +55,16 @@ if st.button("Baixar"):
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }]
+        else:
+            # Se o usuário escolheu um formato específico
+            if selected_quality:
+                format_id = selected_quality.split(" - ")[0]  # Extrair o ID do formato escolhido
+                ydl_opts['format'] = format_id
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info_dict = ydl.extract_info(video_url, download=True)
-                video_title = ydl.prepare_filename(info_dict)
-
-            st.success(f"Download concluído! O arquivo foi salvo como: {video_title}")
+                ydl.download([video_url])
+            st.success("Download concluído com sucesso!")
         except Exception as e:
             st.error(f"Erro ao baixar o vídeo: {e}")
     else:
